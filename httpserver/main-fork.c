@@ -219,26 +219,29 @@ int exp1_http_session(int sock)
 int main(int argc, char **argv)
 {
   int sock_listen;
-
-  sock_listen = exp1_tcp_listen(10121);
+  struct sockaddr addr;
+  sock_listen = exp1_tcp_listen(10021);
 
   while(1){
-    struct sockaddr addr;
     int sock_client;
     int len;
-    int pid = fork();
+    int status = -1;
+    int acc = 0;
+    
     sock_client = accept(sock_listen, &addr, (socklen_t*) &len);
+    pid_t pid = fork();
 
     if(pid == 0){
       exp1_http_session(sock_client);
-      _exit(0);
-      wait(NULL);
+      shutdown(sock_client, SHUT_RDWR);
+      close(sock_client);
+      _exit(1);
+    }else if(pid== -1){
+      perror("fork");
+      close(acc);
     }else{
       printf("pid = %d created\n", pid);
+      while(waitpid(-1,&status,WNOHANG)>0);
     }
-    waitpid(0,NULL,WNOHANG);
-
-    shutdown(sock_client, SHUT_RDWR);
-    close(sock_client);
   }
 }
