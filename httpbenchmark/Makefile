@@ -2,7 +2,7 @@ CC=gcc
 C++=g++
 LD=g++
 CFLAGS=-c -Wall -pedantic-errors -O0 -g3 -std=gnu11 -I../
-LDFLAGS=
+LDFLAGS=-pthread
 OBJECTS=HTTPbenchmark.o ../exp1lib.o
 EXECUTABLE=HTTPbenchmark
 
