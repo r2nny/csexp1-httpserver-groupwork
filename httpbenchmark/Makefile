@@ -1,10 +1,10 @@
 CC=gcc
 C++=g++
 LD=g++
-CFLAGS=-c -Wall -pedantic-errors -O0 -g3 -std=c11 -I../
+CFLAGS=-c -Wall -pedantic-errors -O0 -g3 -std=gnu11 -I../
 LDFLAGS=
-OBJECTS=main.o ../exp1lib.o
-EXECUTABLE=main
+OBJECTS=HTTPbenchmark.o ../exp1lib.o
+EXECUTABLE=HTTPbenchmark
 
 all: $(EXECUTABLE)
     
