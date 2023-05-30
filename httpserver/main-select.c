@@ -1,5 +1,6 @@
 #include "exp1.h"
 #include "exp1lib.h"
+#include <stdbool.h>
 
 typedef struct{
   char cmd[64];
@@ -10,7 +11,7 @@ typedef struct{
   int size;
 } exp1_info_type;
 
-int exp1_http_session(int sock);
+bool exp1_http_session(int sock);
 int exp1_parse_header(char* buf, int size, exp1_info_type* info);
 void exp1_parse_status(char* status, exp1_info_type *pinfo);
 void exp1_check_file(exp1_info_type *info);
@@ -18,115 +19,127 @@ void exp1_http_reply(int sock, exp1_info_type *info);
 void exp1_send_404(int sock);
 void exp1_send_file(int sock, char* filename);
 
-#define MAX_CLIENTS 10
-#define BUFFER_SIZE 2048
+#define MAXCHILD 1200
+
 
 int main(int argc, char **argv){
+  int sock;
   int sock_listen;
-  int client_sockets[MAX_CLIENTS]; // クライアントのソケット記憶用
-  fd_set readfds; // 読み込み可能なソケットを監視するセット
-  int max_sd; // 最大ソケットディスクリプタ
-
   sock_listen = exp1_tcp_listen(10090);
 
-  // サーバの待機状態に入る
-  if (listen(sock_listen, MAX_CLIENTS) < 0) {
-    perror("listen");
-    exit(EXIT_FAILURE);
+  // クライアント管理配列
+  int childNum = 0;
+  int child[MAXCHILD];
+  int i = 0;
+  for (i = 0; i < MAXCHILD; i++) {
+    child[i] = -1;
   }
 
-  // クライアントソケットの初期化
-  for (int i = 0; i < MAX_CLIENTS; ++i) {
-    client_sockets[i] = 0;
-  }
+  sock = sock_listen;
 
-  char buf[BUFFER_SIZE]; // 受信データのバッファ
+  while (true) {
 
-  while(1){
-    struct sockaddr addr;
-    int sock_client;
-    int len;
-    // ソケットセットを初期化
-    FD_ZERO(&readfds);
-
-    // サーバソケットをセットに追加
-    FD_SET(sock_listen, &readfds);
-    max_sd = sock_listen;
-
-    // クライアントソケットをセットに追加
-    for (int i = 0; i < MAX_CLIENTS; ++i) {
-      int sd = client_sockets[i];
-
-      // 有効なソケットディスクリプタであればセットに追加
-      if (sd > 0) {
-        FD_SET(sd, &readfds);
-      }
-
-      // 最大ソケットディスクリプタを更新
-      if (sd > max_sd) {
-        max_sd = sd;
-      }
-    }
-
-    // ソケットの状態を監視
-    int activity = select(max_sd + 1, &readfds, NULL, NULL, NULL);
-
-    if (activity < 0) {
-      perror("select");
-      exit(EXIT_FAILURE);
-    }
-
-    // サーバソケットに新しい接続があるか確認
-    if (FD_ISSET(sock_listen, &readfds)) {
-      struct sockaddr_in client_addr;
-      socklen_t addr_len = sizeof(client_addr);
-
-      // 新しい接続を受け入れる
-      int new_sd = accept(sock_listen, (struct sockaddr*)&client_addr, &addr_len);
-      if (new_sd < 0) {
-        perror("accept");
-        exit(EXIT_FAILURE);
-      }
-
-      // クライアントソケットを記憶
-      for (int i = 0; i < MAX_CLIENTS; ++i) {
-        if (client_sockets[i] == 0) {
-          client_sockets[i] = new_sd;
-          break;
+    // select用マスクの初期化
+    fd_set mask;
+    FD_ZERO(&mask);
+    FD_SET(sock, &mask);  // ソケットの設定
+    int width = sock + 1;
+    int i = 0;
+    for (i = 0; i < childNum; i++) {
+      if (child[i] != -1) {
+        FD_SET(child[i], &mask);  // クライアントソケットの設定
+        if ( width <= child[i] ) {
+          width = child[i] + 1;
         }
       }
     }
 
-    // クライアントソケットでデータが受信可能か確認し、処理
-    for (int i = 0; i < MAX_CLIENTS; ++i) {
-      int sd = client_sockets[i];
+    // マスクを設定
+    fd_set ready = mask;
 
-      if (FD_ISSET(sd, &readfds)) {
-        // クライアントからデータを受信
-        int recv_size = recv(sd, buf, sizeof(buf), 0);
-        if (recv_size == 0) {
-          // 接続のクローズ
-          close(sd);
-          client_sockets[i] = 0;
-        } else if (recv_size < 0) {
-          perror("recv");
-        } else {
-          sock_client = accept(sock_listen, &addr, (socklen_t*) &len);
-          exp1_http_session(sock_client);
+    // タイムアウト値のセット
+    struct timeval timeout;
+    timeout.tv_sec = 600;
+    timeout.tv_usec = 0;
 
-          shutdown(sock_client, SHUT_RDWR);
-          close(sock_client);
+    switch (select(width, (fd_set *) &ready, NULL, NULL, &timeout)) {
+      case -1:
+        // エラー処理
+        perror("select");
+        break;
+      case 0:
+        // タイムアウト
+        break;
+      default:
+        // I/Oレディあり
+
+        if (FD_ISSET(sock, &ready)) {
+          // サーバソケットレディの場合
+          struct sockaddr_storage from;
+          socklen_t len = sizeof(from);
+          int acc = 0;
+          if ((acc = accept(sock, (struct sockaddr *) &from, &len))
+              == -1) {
+            // エラー処理
+            if (errno != EINTR) {
+              perror("accept");
+            }
+            return false;
+          } else {
+            // クライアントからの接続が行われた場合
+            char hbuf[NI_MAXHOST];
+            char sbuf[NI_MAXSERV];
+            getnameinfo((struct sockaddr *) &from, len, hbuf,
+                sizeof(hbuf), sbuf, sizeof(sbuf),
+                NI_NUMERICHOST | NI_NUMERICSERV);
+            fprintf(stderr, "accept:%s:%s\n", hbuf, sbuf);
+
+            // クライアント管理配列に登録
+            int pos = -1;
+            int i = 0;
+            for (i = 0; i < childNum; i++) {
+              if (child[i] == -1) {
+                pos = i;
+                break;
+              }
+            }
+
+            if (pos == -1) {
+              if (childNum >= MAXCHILD) {
+                // 並列数が上限に達している場合は切断する
+                fprintf(stderr, "child is full.\n");
+                close(acc);
+              } else {
+                pos = childNum;
+                childNum = childNum + 1;
+              }
+            }
+
+            if (pos != -1) {
+              child[pos] = acc;
+            }
+          }
         }
-      }
+
+        // アクセプトしたソケットがレディの場合を確認する
+        int i = 0;
+        for (i = 0; i < childNum; i++) {
+          if (child[i] != -1 && FD_ISSET(child[i], &ready)) {
+            // クライアントとの通信処理
+            if(exp1_http_session(child[i]) == true){
+              shutdown(child[i], SHUT_RDWR);
+              close(child[i]);
+              child[i] = -1;
+            }
+
+          }
+        }
     }
   }
-
-  // サーバソケットのクローズ
-  //close(sock_listen);
 }
 
 
-int exp1_http_session(int sock){
+bool exp1_http_session(int sock){
   char buf[2048];
   int recv_size = 0;
   exp1_info_type info;
@@ -136,7 +149,7 @@ int exp1_http_session(int sock){
     int size = recv(sock, buf + recv_size, 2048, 0);
 
     if(size == -1){
-      return -1;
+      return false;
     }
 
     recv_size += size;
@@ -145,7 +158,7 @@ int exp1_http_session(int sock){
 
   exp1_http_reply(sock, &info);
 
-  return 0;
+  return true;
 }
 
 int exp1_parse_header(char* buf, int size, exp1_info_type* info){
