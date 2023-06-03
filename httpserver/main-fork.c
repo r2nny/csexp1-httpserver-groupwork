@@ -38,7 +38,6 @@ void exp1_send_file(int sock, char* filename)
   fclose(fp);
 }
 
-
 void exp1_send_404(int sock)
 {
   char buf[16384];
@@ -226,9 +225,13 @@ int main(int argc, char **argv)
     int sock_client;
     int len;
     int status = -1;
-    int acc = 0;
+
     
     sock_client = accept(sock_listen, &addr, (socklen_t*) &len);
+    if (sock_client == -1){
+      perrot("accept");
+      continue;
+    }
     pid_t pid = fork();
 
     if(pid == 0){
@@ -238,7 +241,8 @@ int main(int argc, char **argv)
       _exit(1);
     }else if(pid== -1){
       perror("fork");
-      close(acc);
+      close(sock_client);
+      continue;
     }else{
       printf("pid = %d created\n", pid);
       while(waitpid(-1,&status,WNOHANG)>0);
