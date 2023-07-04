@@ -1,0 +1,82 @@
+#startedMeasure{
+	display: none;
+}
+
+#measureResult{
+	display: none;
+}
+
+#didRecord{
+	display: none;
+}
+
+p {
+	font-size: 20px;
+}
+
+body {
+	width: 600px;
+	margin: auto;
+	text-align: center;
+}
+
+select {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	width: 300px;
+	height: 35px;
+	font-size: 20px;
+	border: 1px solid #dcdcdc;
+	background-color: #fff;
+	border-radius: 10px;
+	margin: auto;
+	margin-top: 30px;
+}
+
+input {
+	border: 1px solid #dcdcdc;
+	font-size: 15px;
+	width: 300px;
+	height: 30px;
+	border-radius: 10px;
+	margin-top: 30px;
+}
+
+button {
+	font-weight: bold;
+	font-size: 15px;
+	background: none;
+	border: none;
+	outline: none;
+	margin-top: 50px;
+}
+
+.startBtn {
+	width: 150px;
+	height: 40px;
+	border-radius: 50px;
+	background: #dcdcdc;
+	transition: 0.3s ;
+}
+
+.startBtn:hover {
+	background: #c0c0c0;
+}
+
+.now {
+	padding-top: 30px;
+}
+
+.end {
+	font-weight: bold;
+	padding-top: 30px;
+}
+
+.res {
+	padding-bottom: 20px;
+}
+
+.alarm {
+	font-size: 15px;
+}

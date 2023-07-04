@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>実験A 在宅用ベンチマークサーバ</title>
+  <link rel="stylesheet" href="../css/homeindex.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="../script/homeindex.js"></script>
+</head>
+
+<body>
+  <h1>実験A 在宅用ベンチマークサーバ</h1>
+
+  <div id="topPage">
+
+    <div>
+      <input type="url" name="url" placeholder="http://(rasberrypiのIPアドレス)/progC.php">
+    </div>
+
+    <div>
+      <button class="startBtn" id="startMeasureBtn" name="startMeasure">計測開始</button>
+    </div>
+  </div>
+
+  <div id="startedMeasure">
+    <div id="loader">
+      <img src="./gif/loading.gif" width=300px height=300px>
+    </div>
+  </div>
+
+
+  <div id="measureResult">
+    <p class="end">計測結果</p>
+    <p style="font-weight: bold;" id="MeasureTime"></p>
+    <p class="res"></p>
+    <p id="Msg"></p>
+
+    <button class="startBtn" id="restartBtn">トップへ</button>
+  </div>
+
+</body>
+
+</html>
